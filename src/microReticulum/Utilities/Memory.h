@@ -18,6 +18,8 @@
 
 #include "tlsf/tlsf.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #define RNS_HEAP_ALLOCATOR 0		 // Use HEAP for allocator
