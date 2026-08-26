@@ -53,6 +53,7 @@ namespace RNS {
 		static const Reticulum& _instance;
 
 		static bool __transport_enabled;
+		static float __jobs_interval;
         static bool __link_mtu_discovery;
         static bool __remote_management_enabled;
 		static bool __use_implicit_proof;
@@ -140,6 +141,12 @@ namespace RNS {
 
 		:returns: True if Transport is enabled, False if not.
 		*/
+		// Interval between housekeeping passes in loop() (announce
+		// rebroadcasts, link and receipt timeouts, table culling). Reference
+		// RNS runs its equivalent every 0.25 s; a long interval delays
+		// announce propagation between interfaces by up to that long.
+		inline static float jobs_interval() { return __jobs_interval; }
+		inline static void jobs_interval(float seconds) { __jobs_interval = seconds; }
 		inline static bool transport_enabled() { return __transport_enabled; }
 		inline static void transport_enabled(bool transport_enabled) { __transport_enabled = transport_enabled; }
 

@@ -43,6 +43,7 @@ using namespace RNS::Utilities;
 /*static*/ const Reticulum& Reticulum::_instance = {Type::NONE};
 
 /*static*/ bool Reticulum::__transport_enabled = false;
+/*static*/ float Reticulum::__jobs_interval = (float)Type::Reticulum::JOB_INTERVAL;
 /*static*/ bool Reticulum::__link_mtu_discovery = RNS::Type::Reticulum::LINK_MTU_DISCOVERY;
 /*static*/ bool Reticulum::__remote_management_enabled = false;
 /*static*/ bool Reticulum::__use_implicit_proof = true;
@@ -229,7 +230,7 @@ void Reticulum::loop() {
 		if (!_object->_is_connected_to_shared_instance) {
 
 			// Perform Reticulum housekeeping
-			if (OS::time() > (_object->_jobs_last_run + JOB_INTERVAL)) {
+			if (OS::time() > (_object->_jobs_last_run + __jobs_interval)) {
 				jobs();
 			}
 
