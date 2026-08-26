@@ -201,6 +201,7 @@ namespace RNS { namespace Type {
 		static const uint32_t RESOURCE_CACHE   = 60*60*24;
 		// CBA TEST
 		//static const uint16_t JOB_INTERVAL     = 60*5;
+		// Default housekeeping interval; adjustable at runtime via Reticulum::jobs_interval().
 		static const uint16_t JOB_INTERVAL     = 60;
 		// CBA TEST
 		static const uint16_t CLEAN_INTERVAL   = 60*15;

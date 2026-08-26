@@ -28,6 +28,10 @@ This API is dependent on the following external libraries:
 - `-DRNS_PERSIST_HASHLIST=0` Used to disable persistence of RNS packet hashlist in file system (enabled by default)
 - `-DRNS_USE_PROVISIONING` Used to enable the Provisioning subsystem (auto-started from `Reticulum::start()`). Disk persistence within the subsystem is additionally gated on `-DRNS_USE_FS`. Without this flag, none of the provisioning code is linked into the final binary &mdash; see the [Provisioning](#provisioning) section below.
 
+## Runtime Options
+
+- `RNS::Reticulum::jobs_interval(float seconds)` sets how often `Reticulum::loop()` runs the Transport housekeeping pass (announce retransmission to other interfaces, link and receipt timeouts, table culling). The default is `Type::Reticulum::JOB_INTERVAL` (60 s); transport nodes that bridge interfaces will usually want 1 s or less so announces propagate promptly. `RNS::Reticulum::jobs_interval()` returns the current value.
+
 ## Memory Management Build Options
 
 Two classes of memory allocator are defined; the container allocator (`RNS_CONTAINER_ALLOCATOR`) which is used for certain long-lived STL containers (e.g. path table), and the default allocator (`RNS_DEFAULT_ALLOCATOR`) which is used for all other C++ memory allocation (new/delete).
@@ -73,6 +77,25 @@ Also note the following preprocessor directives used to tune `microStore::FileSt
   `-DRNS_PATH_TABLE_SEGMENT_SIZE`: Size in bytes of each segment file
   `-DRNS_PATH_TABLE_SEGMENT_COUNT`: Maximum number of segment files to rotate (minimum of 3)
 Appropriate settings should be selected to match the storage and memory resources available on the target platform.
+
+## Announce Handlers
+
+Applications receive announces by registering a subclass of `RNS::AnnounceHandler` with `RNS::Transport::register_announce_handler()`. Override either callback:
+
+```cpp
+class MyHandler : public RNS::AnnounceHandler {
+public:
+	// Basic form: destination hash, announced identity and app data.
+	void received_announce(const RNS::Bytes& destination_hash, const RNS::Identity& announced_identity, const RNS::Bytes& app_data) override;
+
+	// Extended form: additionally receives the announce packet, giving access to
+	// packet.receiving_interface(), packet.hops(), packet.rssi() and packet.snr().
+	// The default implementation forwards to the basic form.
+	void received_announce(const RNS::Bytes& destination_hash, const RNS::Identity& announced_identity, const RNS::Bytes& app_data, const RNS::Packet& packet) override;
+};
+```
+
+Pass an aspect filter such as `"lxmf.delivery"` to the `AnnounceHandler` constructor to receive only announces for that destination name, or `nullptr` for all announces.
 
 ## Provisioning
 
@@ -326,6 +349,22 @@ cmake -S . -B build -DRNS_USE_FS=OFF -DRNS_DEFAULT_ALLOCATOR=RNS_HEAP_POOL_ALLOC
 ```
 
 One naming overlap to be aware of: the CMake build defines `-DRNS_DEBUG_MEMORY=ON` as a *convenience switch* that turns on `-DRNS_DEBUG_HEAP`, `-DRNS_DEBUG_MEMORY`, `-DRNS_DEBUG_METRICS`, and `-DRNS_DEBUG_PATHSTORE` together. In PlatformIO, those four preprocessor flags are added individually in `build_flags`.
+
+## Threading model
+
+microReticulum is single-threaded by design. Every call into the library —
+`Reticulum::loop()`, `Transport::inbound()`/`outbound()`, interface
+`handle_incoming()`, `Destination::announce()`, registering and
+deregistering interfaces or announce handlers — must come from **one**
+thread/task. Interface implementations that receive data on another
+thread (a radio ISR, a socket task) should hand the bytes to that single
+thread, for example through a FreeRTOS queue or ring buffer, and call
+`handle_incoming()` from `loop()`.
+
+Signal quality for a received packet is set by the interface before it
+calls `handle_incoming()`, through the `Interface` wrapper's
+`r_stat_rssi()` / `r_stat_snr()` setters (the `InterfaceImpl` fields are
+private); `Transport::inbound()` copies them onto the `Packet`.
 
 ## Known Limitations
 
