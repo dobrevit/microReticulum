@@ -327,6 +327,22 @@ cmake -S . -B build -DRNS_USE_FS=OFF -DRNS_DEFAULT_ALLOCATOR=RNS_HEAP_POOL_ALLOC
 
 One naming overlap to be aware of: the CMake build defines `-DRNS_DEBUG_MEMORY=ON` as a *convenience switch* that turns on `-DRNS_DEBUG_HEAP`, `-DRNS_DEBUG_MEMORY`, `-DRNS_DEBUG_METRICS`, and `-DRNS_DEBUG_PATHSTORE` together. In PlatformIO, those four preprocessor flags are added individually in `build_flags`.
 
+## Threading model
+
+microReticulum is single-threaded by design. Every call into the library —
+`Reticulum::loop()`, `Transport::inbound()`/`outbound()`, interface
+`handle_incoming()`, `Destination::announce()`, registering and
+deregistering interfaces or announce handlers — must come from **one**
+thread/task. Interface implementations that receive data on another
+thread (a radio ISR, a socket task) should hand the bytes to that single
+thread, for example through a FreeRTOS queue or ring buffer, and call
+`handle_incoming()` from `loop()`.
+
+Signal quality for a received packet is set by the interface before it
+calls `handle_incoming()`, through the `Interface` wrapper's
+`r_stat_rssi()` / `r_stat_snr()` setters (the `InterfaceImpl` fields are
+private); `Transport::inbound()` copies them onto the `Packet`.
+
 ## Known Limitations
 
 Nordic nrf52840 based boards are severely constrained, especially in avialable flash storage available to the application. Even though the nrf52840 has 1 MB of flash, the `InternalFileSystem` implemented inside of the Adafruit nrf52 BSP hard-codes the flash filesystem size to only 28 KB, which severely limits the amount of data theat microReticulum can persist (especially the path table).
