@@ -28,6 +28,10 @@ This API is dependent on the following external libraries:
 - `-DRNS_PERSIST_HASHLIST=0` Used to disable persistence of RNS packet hashlist in file system (enabled by default)
 - `-DRNS_USE_PROVISIONING` Used to enable the Provisioning subsystem (auto-started from `Reticulum::start()`). Disk persistence within the subsystem is additionally gated on `-DRNS_USE_FS`. Without this flag, none of the provisioning code is linked into the final binary &mdash; see the [Provisioning](#provisioning) section below.
 
+## Runtime Options
+
+- `RNS::Reticulum::jobs_interval(float seconds)` sets how often `Reticulum::loop()` runs the Transport housekeeping pass (announce retransmission to other interfaces, link and receipt timeouts, table culling). The default is `Type::Reticulum::JOB_INTERVAL` (60 s); transport nodes that bridge interfaces will usually want 1 s or less so announces propagate promptly. `RNS::Reticulum::jobs_interval()` returns the current value.
+
 ## Memory Management Build Options
 
 Two classes of memory allocator are defined; the container allocator (`RNS_CONTAINER_ALLOCATOR`) which is used for certain long-lived STL containers (e.g. path table), and the default allocator (`RNS_DEFAULT_ALLOCATOR`) which is used for all other C++ memory allocation (new/delete).
