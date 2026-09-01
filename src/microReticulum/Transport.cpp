@@ -23,6 +23,7 @@
 #include "Log.h"
 #include "Cryptography/Random.h"
 #include "Utilities/OS.h"
+#include "Utilities/Phase.h"
 #include "Utilities/Persistence.h"
 
 #if defined(RNS_ENABLE_REMOTE_PROVISIONING) && defined(RNS_USE_PROVISIONING)
@@ -500,6 +501,7 @@ DestinationEntry empty_destination_entry;
 
 			// Process active and pending link lists
 			if (OS::time() > (_links_last_checked + _links_check_interval)) {
+				RNS_PHASE("jobs.links");
 				std::set<Link> pending_links(_pending_links);
 				for (auto& link : pending_links) {
 					if (link.status() == Type::Link::CLOSED) {
@@ -557,6 +559,7 @@ DestinationEntry empty_destination_entry;
 
 			// Process receipts list for timed-out packets
 			if (OS::time() > (_receipts_last_checked + _receipts_check_interval)) {
+				RNS_PHASE("jobs.receipts");
 				while (_receipts.size() > Type::Transport::MAX_RECEIPTS) {
 					//p culled_receipt = Transport.receipts.pop(0)
 					PacketReceipt culled_receipt = _receipts.front();
@@ -584,6 +587,7 @@ DestinationEntry empty_destination_entry;
 
 			// Process announces needing retransmission
 			if (OS::time() > (_announces_last_checked + _announces_check_interval)) {
+				RNS_PHASE("jobs.announces");
 				std::vector<Bytes> completed_announces;
 				for (auto& [destination_hash, announce_entry] : _announce_table) {
 					if (announce_entry._retries > 0 && announce_entry._retries >= Type::Transport::LOCAL_REBROADCASTS_MAX) {
@@ -685,6 +689,7 @@ TRACEF("announce_destination: %s", announce_destination.hash().toHex().c_str());
 
 			// Cull invalidated path requests
 			if (OS::time() > (_pending_prs_last_checked + _pending_prs_check_interval)) {
+				RNS_PHASE("jobs.pathreqs");
 				std::vector<Bytes> stale_local_prs;
 				for (auto& [destination_hash, interface] : _pending_local_path_requests) {
 					if (!find_interface_from_hash(destination_hash)) {
@@ -702,6 +707,7 @@ TRACEF("announce_destination: %s", announce_destination.hash().toHex().c_str());
 			// CBA Culling no longer necessary since switch to GenerationalSet<>
 
 			if (OS::time() > (_tables_last_culled + _tables_cull_interval)) {
+				RNS_PHASE("jobs.cull");
 
                 // Remove unneeded path state entries
 				try {
@@ -972,6 +978,7 @@ TRACEF("path_request_conditions=%u", path_request_conditions);
 
             // Check expired blackhole entries
 			if (OS::time() > (_blackhole_last_checked + _blackhole_check_interval)) {
+				RNS_PHASE("jobs.blackhole");
 				try {
 					std::vector<Bytes> stale_blackholes;
 					double now = OS::time();
@@ -995,6 +1002,7 @@ TRACEF("path_request_conditions=%u", path_request_conditions);
 
 			// Refresh per-interface and class-level traffic counters and speeds
 			if (OS::time() > (_traffic_last_checked + _traffic_check_interval)) {
+				RNS_PHASE("jobs.traffic");
 				try {
 					count_traffic();
 				}
@@ -1006,6 +1014,7 @@ TRACEF("path_request_conditions=%u", path_request_conditions);
 
             // Run interface-related jobs
 			if (OS::time() > (_interface_last_jobs + _interface_jobs_interval)) {
+				RNS_PHASE("jobs.ifacejobs");
 				prioritize_interfaces();
 				// Announces that outbound() had to queue are sent from here.
 				// RNS arms a timer per interface for this; this port has none,

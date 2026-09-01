@@ -18,6 +18,7 @@
 #include "Log.h"
 #include "Type.h"
 #include "Utilities/Memory.h"
+#include "Utilities/Phase.h"
 
 #ifdef RNS_USE_PROVISIONING
 #include "Provisioning/Provisioning.h"
@@ -229,28 +230,45 @@ void Reticulum::loop() {
 	try {
 		if (!_object->_is_connected_to_shared_instance) {
 
+			// Each step names itself, so a task found stuck inside this loop
+			// can say which call it is in rather than only that it is here.
+			// Four of these touch flash or the whole path table, and until
+			// they were named a stall could be localised no further than
+			// "after the interfaces" (Utilities/Phase.h).
+
 			// Perform Reticulum housekeeping
 			if (OS::time() > (_object->_jobs_last_run + __jobs_interval)) {
+				RNS_PHASE("reticulum.jobs");
 				jobs();
 			}
 
 			// Perform Interface processing
-			for (auto& interface : Transport::get_interfaces()) {
-				const_cast<Interface&>(interface).loop();
+			{
+				RNS_PHASE("interfaces");
+				for (auto& interface : Transport::get_interfaces()) {
+					const_cast<Interface&>(interface).loop();
+				}
 			}
 
 			// Perform Filesystem processing
 			microStore::FileSystem& filesystem = OS::get_filesystem();
 			if (filesystem) {
+				RNS_PHASE("filesystem");
 				filesystem.loop();
 			}
 
 			// Perform Transport processing
-			RNS::Transport::loop();
+			{
+				RNS_PHASE("transport.loop");
+				RNS::Transport::loop();
+			}
 		}
 
 		// Perform random number gnerator housekeeping
-		RNG.loop();
+		{
+			RNS_PHASE("rng");
+			RNG.loop();
+		}
     }
     catch (const std::bad_alloc&) {
 		ERROR("Reticulum::loop: bad_alloc - OUT OF MEMORY");

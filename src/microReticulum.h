@@ -15,6 +15,7 @@
 #pragma once
 
 #include "microReticulum/Utilities/OS.h"
+#include "microReticulum/Utilities/Phase.h"
 #include "microReticulum/Provisioning/Provisioning.h"
 #include "microReticulum/Transport.h"
 #include "microReticulum/Reticulum.h"
