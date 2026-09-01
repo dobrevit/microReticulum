@@ -17,6 +17,6 @@
 using namespace RNS::Utilities;
 
 /*static*/ const char* Phase::_name = nullptr;
-/*static*/ uint64_t    Phase::_since = 0;
+/*static*/ uint32_t    Phase::_since = 0;
 /*static*/ PhaseStat   Phase::_stats[Phase::MAX_PHASES];
 /*static*/ size_t      Phase::_used = 0;

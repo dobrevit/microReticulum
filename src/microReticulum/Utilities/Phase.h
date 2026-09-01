@@ -39,10 +39,29 @@
 
 #include "OS.h"
 
+#ifdef ARDUINO
+#include <Arduino.h>
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
 namespace RNS { namespace Utilities {
+
+// A span is a duration, so it wants a plain monotonic counter and not the
+// epoch-corrected clock. OS::ltime() adds the persisted time offset and keeps
+// its 32-bit roll-over in shared statics that no lock covers, so calling it
+// from the task that reads this table while the loop is writing it would race
+// on those statics -- and a spurious carry there moves the whole node's clock
+// forward by 49.7 days. millis() asks the hardware and answers. Roll-over
+// after 49 days costs one mismeasured span; ltime() could cost the node.
+inline uint32_t phase_now_ms() {
+#ifdef ARDUINO
+	return millis();
+#else
+	return (uint32_t)OS::ltime();
+#endif
+}
 
 struct PhaseStat {
 	const char* _name = nullptr;
@@ -61,18 +80,18 @@ public:
 
 	static void enter(const char* name) {
 		_name = name;
-		_since = OS::ltime();
+		_since = phase_now_ms();
 	}
 
 	static void leave() {
 		if (_name == nullptr) return;
-		const uint64_t now = OS::ltime();
-		const uint64_t held = now > _since ? now - _since : 0;
+		const uint32_t now = phase_now_ms();
+		const uint32_t held = now - _since;   // unsigned, so a roll-over subtracts cleanly
 		PhaseStat* stat = find_or_add(_name);
 		if (stat != nullptr) {
 			stat->_count++;
 			stat->_total_ms += held;
-			if (held > stat->_max_ms) stat->_max_ms = (uint32_t)held;
+			if (held > stat->_max_ms) stat->_max_ms = held;
 		}
 		_name = nullptr;
 		_since = now;
@@ -82,10 +101,7 @@ public:
 	// task reads these to see a stall while it is happening; the table below
 	// is what it reads afterwards.
 	static const char* current() { return _name != nullptr ? _name : "idle"; }
-	static uint32_t current_ms() {
-		const uint64_t now = OS::ltime();
-		return (uint32_t)(now > _since ? now - _since : 0);
-	}
+	static uint32_t current_ms() { return phase_now_ms() - _since; }
 
 	static size_t count() { return _used; }
 	static const PhaseStat& at(size_t i) { return _stats[i < _used ? i : 0]; }
@@ -110,7 +126,7 @@ private:
 	}
 
 	static const char* _name;
-	static uint64_t    _since;
+	static uint32_t    _since;
 	static PhaseStat   _stats[MAX_PHASES];
 	static size_t      _used;
 
